@@ -1,0 +1,9 @@
+flask
+langchain
+pandas
+PyPDF2
+faiss-cpu
+openai
+langchain-community
+openpyxl
+tiktoken
