@@ -3,17 +3,31 @@ import json
 import os
 from PyPDF2 import PdfReader
 import pandas as pd
-from langchain.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 import openai  # Importing openai to handle the RateLimitError
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.docstore.document import Document
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.chains import RetrievalQA
+import tempfile
 
-os.environ['OPENAI_API_KEY'] = ''
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Change this to a random secret key
+
+# Set OpenAI API key
+os.environ['OPENAI_API_KEY'] = 'sk-m0LvnNElfCEcfpYkO_h4Pm6pbvI3obRtq59Sbtof1YT3BlbkFJDXlLsu0_-v0ydcmHc2lkJIttGmWp-i1MJkGFS0FYQA'
+
+# Set up the embedding model using Hugging Face
+embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+embedding_function = HuggingFaceEmbeddings(model_name=embedding_model)
+
+# Set up the LLM (Language Model)
+llm = ChatOpenAI(model_name="gpt-4-turbo", temperature=0.1)
+
 
 # Load authorized users from a file
 def load_users():
@@ -23,6 +37,92 @@ def load_users():
     except Exception as e:
         print(f"Error loading users: {str(e)}")
         return {}
+
+def load_excel(file_path):
+    """Load Excel file and return text content as Document objects."""
+    df = pd.read_excel(file_path)
+    text = df.apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1).tolist()
+    documents = [Document(page_content=t) for t in text]
+    return documents
+
+def load_pdf(file_path):
+    """Load PDF file and return text content as Document objects."""
+    try:
+        loader = PyPDFLoader(file_path)
+        pages = loader.load_and_split()
+        return pages
+    except Exception as e:
+        print(f"Error loading PDF file {file_path}: {str(e)}")
+        return []
+
+def load_files(list_of_files):
+    """Load and process files into Document objects with error handling."""
+    all_documents = []
+    for file in list_of_files:
+        if file.filename.endswith('.pdf'):
+            # Save file temporarily and read it
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(file.read())
+                file_path = temp_file.name
+            documents = load_pdf(file_path)
+            all_documents.extend(documents)
+            os.remove(file_path)  # Clean up temp file
+        elif file.filename.endswith('.csv'):
+            # Save file temporarily and read it
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(file.read())
+                file_path = temp_file.name
+            documents = load_excel(file_path)
+            all_documents.extend(documents)
+            os.remove(file_path)  # Clean up temp file
+        else:
+            print(f"Unsupported file format: {file.filename}")
+    
+    return all_documents
+
+def create_or_load_faiss_index(list_of_files, faiss_index_path="bulk_index"):
+    """Create a FAISS index if it doesn't exist; otherwise, load it."""
+    if os.path.exists(faiss_index_path):
+        print()
+        print("Loading existing FAISS index...")
+        print()
+        db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
+    else:
+        print("Creating new FAISS index...")
+        documents = load_files(list_of_files)
+        if documents:
+            db = FAISS.from_documents(documents, embedding_function)
+            db.save_local(faiss_index_path)
+        else:
+            raise ValueError("No valid documents were loaded for indexing.")
+
+        # db = FAISS.from_documents(documents, embedding_function)
+        # db.save_local(faiss_index_path)
+    
+    return db
+
+def query_faiss_index(user_input, files=None, faiss_index_path="bulk_index"):
+    """Answer questions using the FAISS index."""
+    # Create or load FAISS index
+    if files:
+        db = create_or_load_faiss_index(files, faiss_index_path)
+    else:
+        db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
+    
+    # Use the retriever from the FAISS index
+    retriever = db.as_retriever()
+
+    # Create the RetrievalQA chain
+    qa = RetrievalQA.from_chain_type(
+        llm=llm, 
+        chain_type="stuff", 
+        retriever=retriever, 
+        return_source_documents=True
+    )
+
+    # Get the result for the user's query
+    result = qa({"query": user_input})
+    return result['result']
 
 @app.route('/')
 def home():
@@ -59,38 +159,13 @@ def upload():
     if request.method == 'POST':
         # Handle file uploads here
         files = request.files.getlist('files')
-        
-        # Process the uploaded files
-        all_text = []
-        for file in files:
-            try:
-                if file.filename.endswith('.pdf'):
-                    pdf_reader = PdfReader(file)
-                    for page in pdf_reader.pages:
-                        all_text.append(page.extract_text())
-                elif file.filename.endswith(('.xls', '.xlsx')):
-                    df = pd.read_excel(file)
-                    all_text.append(df.to_string())
-            except Exception as e:
-                print(f"Error processing file {file.filename}: {str(e)}")
-                return jsonify({"error": f"Error processing file {file.filename}: {str(e)}"}), 500
-
-        # Preprocess and split the text
         try:
-            text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-            texts = text_splitter.split_text('\n'.join(all_text))
-
-            # Create embeddings
-            embeddings = OpenAIEmbeddings()
-
-            # Create and save FAISS index
-            db = FAISS.from_texts(texts, embeddings)
-            db.save_local("faiss_index")
-
-            return "Files processed and indexed successfully", 200
+            # Create or load FAISS index
+            db = create_or_load_faiss_index(files)
+            return "Files processed and indexed successfully", 200  
         except Exception as e:
-            print(f"Error during text processing or indexing: {str(e)}")
-            return jsonify({"error": f"Error during text processing or indexing: {str(e)}"}), 500
+            print(f"Error during file processing or indexing: {str(e)}")
+            return jsonify({"error": f"Error during file processing or indexing: {str(e)}"}), 500
 
     return render_template('upload.html')  # Render the upload page
 
@@ -103,23 +178,8 @@ def chat():
         user_message = request.json.get('message')
         
         try:
-            # Load the FAISS index
-            embeddings = OpenAIEmbeddings()
-            db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
-            
-            # Create a retriever
-            retriever = db.as_retriever(search_kwargs={"k": 3})
-            
-            # Create a conversational chain
-            llm = ChatOpenAI(model_name="gpt-4-turbo", temperature=0.1)
-            qa_chain = ConversationalRetrievalChain.from_llm(llm, retriever=retriever)
-            
-            # Get the response
-            result = qa_chain({"question": user_message, "chat_history": []})
-            
-            return jsonify({"response": result['answer']})
-        # except openai.error.RateLimitError:  # Updated to use the correct exception handling
-        #     return jsonify({"error": "OpenAI rate limit exceeded. Please try again later."}), 429
+            response = query_faiss_index(user_message)
+            return jsonify({"response": response})
         except Exception as e:
             print(f"Error in chat processing: {str(e)}")
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
@@ -127,4 +187,5 @@ def chat():
     return render_template('index.html')  # Render the chat page for GET requests
 
 if __name__ == '__main__':
+    os.makedirs('uploads', exist_ok=True)
     app.run(host='0.0.0.0', port=5000, debug=True)
