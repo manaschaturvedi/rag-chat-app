@@ -7,3 +7,6 @@ openai
 langchain-community
 openpyxl
 tiktoken
+huggingface-hub==0.24.5
+pypdf==4.3.1
+PyPDF2==3.0.1
