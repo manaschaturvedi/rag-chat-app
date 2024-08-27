@@ -19,7 +19,7 @@ app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Change this to a random secret key
 
 # Set OpenAI API key
-os.environ['OPENAI_API_KEY'] = 'sk-m0LvnNElfCEcfpYkO_h4Pm6pbvI3obRtq59Sbtof1YT3BlbkFJDXlLsu0_-v0ydcmHc2lkJIttGmWp-i1MJkGFS0FYQA'
+os.environ['OPENAI_API_KEY'] = ''
 
 # Set up the embedding model using Hugging Face
 embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
