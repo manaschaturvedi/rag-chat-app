@@ -67,7 +67,7 @@ def load_files(list_of_files):
             documents = load_pdf(file_path)
             all_documents.extend(documents)
             os.remove(file_path)  # Clean up temp file
-        elif file.filename.endswith('.csv'):
+        elif file.filename.endswith('.xlsx'):
             # Save file temporarily and read it
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                 temp_file.write(file.read())
@@ -127,7 +127,8 @@ def query_faiss_index(user_input, files=None, faiss_index_path="bulk_index"):
 @app.route('/')
 def home():
     if 'email' in session:
-        return render_template('index.html')  # Chat page for logged in users
+        users = load_users()
+        return render_template('index.html', users=users)  # Pass users to the chat page for both admins and users
     return render_template('login.html')  # Login page for unauthenticated users
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -137,7 +138,7 @@ def login():
         password = request.form['password']
         users = load_users()
         
-        if email in users and users[email] == password:
+        if (email in users['users'] and users['users'][email] == password) or (email in users['admins'] and users['admins'][email] == password):
             session['email'] = email
             return redirect(url_for('home'))
         else:
@@ -152,8 +153,8 @@ def logout():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    authorized_email = 'abc@test.com'  # Change this to the authorized email
-    if 'email' not in session or session['email'] != authorized_email:
+    users = load_users()
+    if 'email' not in session or session['email'] not in users['admins']:
         return "Access denied", 403  # Forbidden access for unauthorized users
 
     if request.method == 'POST':
@@ -167,7 +168,7 @@ def upload():
             print(f"Error during file processing or indexing: {str(e)}")
             return jsonify({"error": f"Error during file processing or indexing: {str(e)}"}), 500
 
-    return render_template('upload.html')  # Render the upload page
+    return render_template('upload.html') if 'email' in session and session['email'] in users['admins'] else redirect(url_for('home'))  # Render the upload page for admins only
 
 @app.route('/chat', methods=['GET', 'POST'])
 def chat():

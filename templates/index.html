@@ -11,11 +11,19 @@
     <div class="container-fluid h-100">
         <div class="row h-100">
             <div class="col-md-3 bg-dark text-light p-3 d-flex flex-column">
-                <h3 class="mb-4">RAG Chat</h3>
+                <h3 class="mb-4 text-center">Takeda Bot</h3>
                 <div class="chat-history flex-grow-1">
                     <!-- Chat history items would go here -->
                 </div>
-                <a href="/logout" class="btn btn-outline-light w-100 mt-3">Logout</a>
+                <div class="text-center mb-3">
+                    {% if 'email' in session %}
+                        <span class="text-light"><strong>{{ session['email'] }}</strong>{% if session['email'] in users['admins'] %} <strong>(admin)</strong>{% endif %}</span>
+                    {% endif %}
+                </div>
+                {% if 'email' in session and session['email'] in users['admins'] %}
+                    <a href="{{ url_for('upload') }}" class="btn btn-outline-light w-100 mt-3">Upload Files</a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light w-100 mt-3">Logout</a>
             </div>
             <div class="col-md-9 d-flex flex-column">
                 <div class="flex-grow-1 overflow-auto p-3" id="chat-messages">
@@ -42,7 +50,7 @@
             addMessageToChat('You', message);
 
             // Send message to server
-            fetch('{{ url_for("chat") }}', {
+            fetch('/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

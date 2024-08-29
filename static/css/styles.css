@@ -17,7 +17,7 @@ body {
 }
 
 #chat-messages {
-    height: calc(100vh - 120px);
+    height: calc(100vh - 150px); /* Adjusted height to accommodate changes in index.html */
     overflow-y: auto;
 }
 

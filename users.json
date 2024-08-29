@@ -1,3 +1,10 @@
 {
-    "abc@test.com": "p123"
+    "admins": {
+        "admin@test.com": "admin",
+        "abc@test.com": "p123"
+    },
+    "users": {
+        "x@test.com": "user123",
+        "y@test.com": "user456"
+    }
 }
