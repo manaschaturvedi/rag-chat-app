@@ -13,6 +13,8 @@ from langchain.docstore.document import Document
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.chains import RetrievalQA
 import tempfile
+from langchain.embeddings.openai import OpenAIEmbeddings
+
 
 
 app = Flask(__name__)
@@ -21,12 +23,8 @@ app.secret_key = 'your_secret_key'  # Change this to a random secret key
 # Set OpenAI API key
 os.environ['OPENAI_API_KEY'] = ''
 
-# Set up the embedding model using Hugging Face
-embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-embedding_function = HuggingFaceEmbeddings(model_name=embedding_model)
-
 # Set up the LLM (Language Model)
-llm = ChatOpenAI(model_name="gpt-4-turbo", temperature=0.1)
+llm = ChatOpenAI(model_name="gpt-4-turbo", temperature=0.2)
 
 
 # Load authorized users from a file
@@ -80,18 +78,19 @@ def load_files(list_of_files):
     
     return all_documents
 
-def create_or_load_faiss_index(list_of_files, faiss_index_path="bulk_index"):
+def create_or_load_faiss_index(list_of_files, faiss_index_path="openai_index"):
     """Create a FAISS index if it doesn't exist; otherwise, load it."""
     if os.path.exists(faiss_index_path):
         print()
         print("Loading existing FAISS index...")
         print()
-        db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
+        # db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
+        db = FAISS.load_local(faiss_index_path, OpenAIEmbeddings(), allow_dangerous_deserialization=True)
     else:
         print("Creating new FAISS index...")
         documents = load_files(list_of_files)
         if documents:
-            db = FAISS.from_documents(documents, embedding_function)
+            db = FAISS.from_documents(documents, OpenAIEmbeddings())
             db.save_local(faiss_index_path)
         else:
             raise ValueError("No valid documents were loaded for indexing.")
@@ -101,13 +100,13 @@ def create_or_load_faiss_index(list_of_files, faiss_index_path="bulk_index"):
     
     return db
 
-def query_faiss_index(user_input, files=None, faiss_index_path="bulk_index"):
+def query_faiss_index(user_input, files=None, faiss_index_path="openai_index"):
     """Answer questions using the FAISS index."""
     # Create or load FAISS index
     if files:
         db = create_or_load_faiss_index(files, faiss_index_path)
     else:
-        db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
+        db = FAISS.load_local(faiss_index_path, OpenAIEmbeddings(), allow_dangerous_deserialization=True)
     
     # Use the retriever from the FAISS index
     retriever = db.as_retriever()
