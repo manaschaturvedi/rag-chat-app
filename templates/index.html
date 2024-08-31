@@ -21,6 +21,7 @@
                     {% endif %}
                 </div>
                 {% if 'email' in session and session['email'] in users['admins'] %}
+                    <a href="{{ url_for('add_users') }}" class="btn btn-outline-light w-100 mt-3">Add Users</a>
                     <a href="{{ url_for('upload') }}" class="btn btn-outline-light w-100 mt-3">Upload Files</a>
                 {% endif %}
                 <a href="{{ url_for('logout') }}" class="btn btn-outline-light w-100 mt-3">Logout</a>

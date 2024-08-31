@@ -186,6 +186,51 @@ def chat():
     
     return render_template('index.html')  # Render the chat page for GET requests
 
+@app.route('/add-users', methods=['GET', 'POST'])
+def add_users():
+    if 'email' not in session or session['email'] not in load_users()['admins']:
+        return "Access denied", 403
+
+    if request.method == 'GET':
+        return render_template('add_users.html')
+
+    if 'file' not in request.files:
+        return "No file part", 400
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file", 400
+    
+    if file and (file.filename.endswith('.csv') or file.filename.endswith('.xlsx')):
+        try:
+            if file.filename.endswith('.csv'):
+                df = pd.read_csv(file)
+            else:
+                df = pd.read_excel(file)
+            
+            required_columns = ['email', 'password', 'role']
+            if not all(col in df.columns for col in required_columns):
+                return "File must contain email, password, and role columns", 400
+            
+            new_users = df.to_dict('records')
+            users = load_users()
+            
+            for user in new_users:
+                if user['role'] == 'admin':
+                    users['admins'][user['email']] = user['password']
+                elif user['role'] == 'user':
+                    users['users'][user['email']] = user['password']
+                else:
+                    return f"Invalid role for user {user['email']}", 400
+            
+            with open('users.json', 'w') as f:
+                json.dump(users, f)
+            
+            return "Users added successfully", 200
+        except Exception as e:
+            return f"Error processing file: {str(e)}", 500
+    else:
+        return "Invalid file format. Please upload a CSV or Excel file.", 400
+
 if __name__ == '__main__':
     os.makedirs('uploads', exist_ok=True)
     app.run(host='0.0.0.0', port=5000, debug=True)
