@@ -37,24 +37,20 @@ def load_users():
         return {}
 
 def load_excel(file_path):
-    """Load Excel file, convert to CSV, and return text content as Document objects."""
+    """Load Excel file and return text content as Document objects."""
     # Read Excel file
     df = pd.read_excel(file_path)
     
-    # Create a temporary CSV file
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as temp_csv:
-        df.to_csv(temp_csv.name, index=False)
-        temp_csv_path = temp_csv.name
+    # Convert DataFrame to JSON
+    json_data = df.to_json(orient='records')
     
-    # Read the CSV file
-    df_csv = pd.read_csv(temp_csv_path)
+    # Parse JSON string back to Python object
+    data = json.loads(json_data)
     
-    # Convert to text and create Document objects
-    text = df_csv.apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1).tolist()
-    documents = [Document(page_content=t) for t in text]
-    
-    # Clean up the temporary CSV file
-    os.remove(temp_csv_path)
+    # Convert JSON objects to Document objects
+    documents = [Document(page_content=json.dumps(item)) for item in data]
+
+    # print(documents[1])
     
     return documents
 
@@ -124,8 +120,8 @@ def query_faiss_index(user_input, files=None, faiss_index_path="openai_index"):
         db = FAISS.load_local(faiss_index_path, OpenAIEmbeddings(), allow_dangerous_deserialization=True)
     
     # Use the retriever from the FAISS index
-    retriever = db.as_retriever()
-
+    # retriever = db.as_retriever()
+    retriever = db.as_retriever(search_kwargs={"k": 10})  # Change 10 to the desired number of documents
     # Create the RetrievalQA chain
     qa = RetrievalQA.from_chain_type(
         llm=llm, 
@@ -136,6 +132,13 @@ def query_faiss_index(user_input, files=None, faiss_index_path="openai_index"):
 
     # Get the result for the user's query
     result = qa({"query": user_input})
+
+    source_documents = result.get('source_documents', [])
+    print('source documents:')
+    for doc in source_documents:
+        print(doc.metadata, doc.page_content[:30])
+        break
+
     return result['result']
 
 @app.route('/')
