@@ -37,10 +37,25 @@ def load_users():
         return {}
 
 def load_excel(file_path):
-    """Load Excel file and return text content as Document objects."""
+    """Load Excel file, convert to CSV, and return text content as Document objects."""
+    # Read Excel file
     df = pd.read_excel(file_path)
-    text = df.apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1).tolist()
+    
+    # Create a temporary CSV file
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as temp_csv:
+        df.to_csv(temp_csv.name, index=False)
+        temp_csv_path = temp_csv.name
+    
+    # Read the CSV file
+    df_csv = pd.read_csv(temp_csv_path)
+    
+    # Convert to text and create Document objects
+    text = df_csv.apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1).tolist()
     documents = [Document(page_content=t) for t in text]
+    
+    # Clean up the temporary CSV file
+    os.remove(temp_csv_path)
+    
     return documents
 
 def load_pdf(file_path):
