@@ -17,7 +17,6 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
-
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Change this to a random secret key
 
@@ -140,7 +139,7 @@ def create_or_load_faiss_index(list_of_files, faiss_index_path="chunk_index"):
         print()
         print("Loading existing FAISS index...")
         print()
-        db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
+        db = FAISS.load_local(faiss_index_path, OpenAIEmbeddings(), allow_dangerous_deserialization=True)
     else:
         print("Creating new FAISS index...")
         db = None
@@ -154,7 +153,7 @@ def create_or_load_faiss_index(list_of_files, faiss_index_path="chunk_index"):
         if db:
             db.add_documents(chunked_documents)
         else:
-            db = FAISS.from_documents(chunked_documents, embedding_function)
+            db = FAISS.from_documents(chunked_documents, OpenAIEmbeddings())
         db.save_local(faiss_index_path)
     else:
         raise ValueError("No valid documents were loaded for indexing.")
