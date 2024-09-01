@@ -133,7 +133,7 @@ def load_files(list_of_files):
     
 #     return db
 
-def create_or_load_faiss_index(list_of_files, faiss_index_path="chunk_index"):
+def create_or_load_faiss_index(list_of_files, faiss_index_path="openai_index"):
     """Create a FAISS index if it doesn't exist; otherwise, load it."""
     if os.path.exists(faiss_index_path):
         print()
@@ -147,7 +147,7 @@ def create_or_load_faiss_index(list_of_files, faiss_index_path="chunk_index"):
     documents = load_files(list_of_files)
 
     # Chunk the documents
-    text_splitter = RecursiveCharacterTextSplitter()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     chunked_documents = text_splitter.split_documents(documents)
     if chunked_documents:
         if db:
