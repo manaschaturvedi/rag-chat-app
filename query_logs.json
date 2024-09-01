@@ -1,0 +1,52 @@
+[
+  {
+    "email": "user1@test.com",
+    "query": "how are screen failure subjects handled?",
+    "timestamp": "2024-09-02T01:19:27.383657"
+  },
+  {
+    "email": "user1@test.com",
+    "query": "what is the SDTM Target of Country?",
+    "timestamp": "2024-09-02T01:19:37.469409"
+  },
+  {
+    "email": "manas@test.com",
+    "query": "can we deviate from standard eCRFs?",
+    "timestamp": "2024-09-02T01:22:51.323919"
+  },
+  {
+    "email": "manas@test.com",
+    "query": "what is the SDTM Target of Country?",
+    "timestamp": "2024-09-02T01:22:56.931175"
+  },
+  {
+    "email": "manas@test.com",
+    "query": "what is the edc design notes for ECG heart rate?",
+    "timestamp": "2024-09-02T01:23:01.551776"
+  },
+  {
+    "email": "manas@test.com",
+    "query": "can we deviate from standard eCRFs?",
+    "timestamp": "2024-09-02T01:24:00.050226"
+  },
+  {
+    "email": "manas@test.com",
+    "query": "what is the SDTM Target of Country?",
+    "timestamp": "2024-09-02T01:24:35.192910"
+  },
+  {
+    "email": "manas@test.com",
+    "query": "what is the edc design notes for ECG heart rate?",
+    "timestamp": "2024-09-02T01:24:38.547032"
+  },
+  {
+    "email": "manas@test.com",
+    "query": "how are screen failure subjects handled?",
+    "timestamp": "2024-09-02T01:28:16.164379"
+  },
+  {
+    "email": "manas@test.com",
+    "query": "what was the summary of the document revision made on 30-Apr-2024?",
+    "timestamp": "2024-09-02T01:28:51.341267"
+  }
+]

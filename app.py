@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, url_for, jsonify
 import json
+from datetime import datetime
 import os
 from PyPDF2 import PdfReader
 import pandas as pd
@@ -247,8 +248,30 @@ def chat():
 
     if request.method == 'POST':
         user_message = request.json.get('message')
+        user_email = session['email']
         
         try:
+            # Append the email, query, and timestamp to query_logs.json
+            log_entry = {
+                "email": user_email,
+                "query": user_message,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Read existing logs
+            try:
+                with open('query_logs.json', 'r') as log_file:
+                    logs = json.load(log_file)
+            except (FileNotFoundError, json.JSONDecodeError):
+                logs = []
+            
+            # Append new log entry
+            logs.append(log_entry)
+            
+            # Write updated logs back to file
+            with open('query_logs.json', 'w') as log_file:
+                json.dump(logs, log_file, indent=2)
+            
             response = query_faiss_index(user_message)
             return jsonify({"response": response})
         except Exception as e:
@@ -301,6 +324,21 @@ def add_users():
             return f"Error processing file: {str(e)}", 500
     else:
         return "Invalid file format. Please upload a CSV or Excel file.", 400
+
+
+@app.route('/query_logs')
+def query_logs():
+    if 'email' not in session or session['email'] not in load_users()['admins']:
+        return "Access denied", 403
+
+    try:
+        with open('query_logs.json', 'r') as log_file:
+            logs = json.load(log_file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        logs = []
+
+    return render_template('query_logs.html', logs=logs)
+
 
 if __name__ == '__main__':
     os.makedirs('uploads', exist_ok=True)
