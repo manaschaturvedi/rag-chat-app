@@ -147,7 +147,7 @@ def create_or_load_faiss_index(list_of_files, faiss_index_path="chunk_index"):
     documents = load_files(list_of_files)
 
     # Chunk the documents
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter()
     chunked_documents = text_splitter.split_documents(documents)
     if chunked_documents:
         if db:
