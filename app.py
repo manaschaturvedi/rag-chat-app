@@ -14,6 +14,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.chains import RetrievalQA
 import tempfile
 from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
 
@@ -89,27 +90,80 @@ def load_files(list_of_files):
     
     return all_documents
 
-def create_or_load_faiss_index(list_of_files, faiss_index_path="openai_index"):
+# def create_or_load_faiss_index(list_of_files, faiss_index_path="openai_index"):
+#     """Create a FAISS index if it doesn't exist; otherwise, load it."""
+#     if os.path.exists(faiss_index_path):
+#         print()
+#         print("Loading existing FAISS index...")
+#         print()
+#         # db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
+#         db = FAISS.load_local(faiss_index_path, OpenAIEmbeddings(), allow_dangerous_deserialization=True)
+#     else:
+#         print("Creating new FAISS index...")
+#         documents = load_files(list_of_files)
+#         if documents:
+#             db = FAISS.from_documents(documents, OpenAIEmbeddings())
+#             db.save_local(faiss_index_path)
+#         else:
+#             raise ValueError("No valid documents were loaded for indexing.")
+
+#         # db = FAISS.from_documents(documents, embedding_function)
+#         # db.save_local(faiss_index_path)
+    
+#     return db
+
+# def create_or_load_faiss_index(list_of_files, faiss_index_path="openai_index"):
+#     """Create a FAISS index if it doesn't exist; otherwise, load and update it."""
+#     print("Loading or creating FAISS index...")
+#     documents = load_files(list_of_files)
+    
+#     if not documents:
+#         raise ValueError("No valid documents were loaded for indexing.")
+    
+#     if os.path.exists(faiss_index_path):
+#         print("Loading existing FAISS index...")
+#         db = FAISS.load_local(faiss_index_path, OpenAIEmbeddings(), allow_dangerous_deserialization=True)
+#         print("Updating existing FAISS index with new documents...")
+#         db.add_documents(documents)
+#     else:
+#         print("Creating new FAISS index...")
+#         db = FAISS.from_documents(documents, OpenAIEmbeddings())
+    
+#     print("Saving updated FAISS index...")
+#     db.save_local(faiss_index_path)
+    
+#     return db
+
+def create_or_load_faiss_index(list_of_files, faiss_index_path="chunk_index"):
     """Create a FAISS index if it doesn't exist; otherwise, load it."""
     if os.path.exists(faiss_index_path):
         print()
         print("Loading existing FAISS index...")
         print()
-        # db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
-        db = FAISS.load_local(faiss_index_path, OpenAIEmbeddings(), allow_dangerous_deserialization=True)
+        db = FAISS.load_local(faiss_index_path, embedding_function, allow_dangerous_deserialization=True)
     else:
         print("Creating new FAISS index...")
-        documents = load_files(list_of_files)
-        if documents:
-            db = FAISS.from_documents(documents, OpenAIEmbeddings())
-            db.save_local(faiss_index_path)
+        db = None
+
+    documents = load_files(list_of_files)
+
+    # Chunk the documents
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunked_documents = text_splitter.split_documents(documents)
+    if chunked_documents:
+        if db:
+            db.add_documents(chunked_documents)
         else:
-            raise ValueError("No valid documents were loaded for indexing.")
+            db = FAISS.from_documents(chunked_documents, embedding_function)
+        db.save_local(faiss_index_path)
+    else:
+        raise ValueError("No valid documents were loaded for indexing.")
 
         # db = FAISS.from_documents(documents, embedding_function)
         # db.save_local(faiss_index_path)
     
     return db
+
 
 def query_faiss_index(user_input, files=None, faiss_index_path="openai_index"):
     """Answer questions using the FAISS index."""
